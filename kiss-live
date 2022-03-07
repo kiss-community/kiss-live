@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/sh -e
 #
 # script to build livecd iso for kisslinux
 #
@@ -95,9 +95,8 @@ prepare_environment() {
 
     print "Preparing enviroment"
 
-    # false positive
-    # shellcheck disable=1090
-    . "${buildcfg:=./build.cfg}"
+    ! [ -e config ] && cp config.def config
+    . "${0%/*}/config"
 
     rm    -rf "$rootfsdir" "$isodir" #"$tmpdir"
     mkdir -p  "$rootfsdir" "$isodir" "$tmpdir"
@@ -115,34 +114,38 @@ prepare_environment() {
 }
 
 prepare_rootfs() {
-    [ ! -f "$tmpdir/$tar" ] && {
-        print "Downloading source"
-            curl -L "$dl" -o "$tmpdir/$tar" || panic "Failed downloading source"
-    }
+    ! [ -f "$TARBALL" ] && panic "Please place $TARBALL in $here."
+
+    mkdir -p "$rootfsdir"
 
     print "Extracting source"
         (
             cd "$rootfsdir" || panic
-            tar xf "$tmpdir/$tar" || panic "Failed extracting source"
+            tar xf "$here/$TARBALL" || panic "Failed extracting source"
         )
-
+        #ls $rootfsdir
     print "Preparing rootfs enviroment"
         cp -r "$repodir"        "$rootfsdir/var/db/kiss/live"
         install -D "$filesdir/issue"        -t "$rootfsdir/root/.cache"
         install -D "$hooksdir/kiss/hooks"   -t "$rootfsdir/root/.cache"
         install -D "$filesdir/kiss-live.sh" -t "$rootfsdir/etc/profile.d"
 
-        git clone "$url/repo"      "$rootfsdir/var/db/kiss/repo"
+        if ! [ -d "$rootfsdir/var/db/kiss/repo" ]; then
+            git clone "${REPO_URL##*+}" "$rootfsdir/var/db/kiss/repo"
+        fi
 
     print "Updating system"
-        chroot_exec "kiss u" || panic "Failed updating system"
+    chroot_exec "kiss update" || panic "Failed updating system"
 
-        # shellcheck disable=2039
-        [ "$packages" ] && base_pkgs="$base_pkgs ${packages//,/ }"
+    chroot_exec "kiss list"
+    exit 1
+
+    # shellcheck disable=2039
+    [ "$packages" ] && base_pkgs="$base_pkgs ${packages//,/ }"
 
     print "Build base packages"
         for pkg in $base_pkgs tinyramfs; do
-            chroot_exec "kiss b $pkg && kiss i $pkg" || panic "Failed to build $pkg"
+            chroot_exec "KISS_PROMPT=0 kiss build $pkg && KISS_PROMPT=0 kiss install $pkg" || panic "Failed to build $pkg"
     done
 }
 
@@ -233,7 +236,7 @@ make_iso() {
     [ "$(id -u)" = 0 ] || panic "must be run as root"
 
     # enable exit on error and disable globbing
-    set -ef
+    set -f
 
     check_depends
     prepare_environment "$@"

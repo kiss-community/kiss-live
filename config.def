@@ -1,21 +1,24 @@
 # Directory to work from, /tmp is chosen since it is often a ramfs.
 WORKDIR="/tmp/kiss-live-workdir"
 
+REPO_URL="git+https://github.com/kiss-community/repo"
+TARBALL="kiss-rootfs-$(date +%Y.%m)-x86_64.tar.xz"
+
 url=https://github.com/kisslinux
 ver=2020.9-2
 tar="kiss-chroot-$ver.tar.xz"
 dl="$url/repo/releases/download/$ver/$tar"
 
-isolabel=${isolabel:-kiss-live-$ver}
+isolabel="kiss-live-$(date +%Y.%m)"
 
 here="$(pwd)"
 repodir=${repodir:-$here/repo}
 filesdir=${filesdir:-$here/files}
 hooksdir=${hooksdir:-$here/hooks}
 
-rootfsdir=${rootfsdir:-$here/rootfs}
-isodir=${isodir:-$here/iso}
-tmpdir=${tmpdir:-$here/tmp}
+rootfsdir=${rootfsdir:-$WORKDIR/rootfs}
+isodir=${isodir:-$WORKDIR/iso}
+tmpdir=${tmpdir:-$WORKDIR/tmp}
 
 # Extra packages to install outside of what already is in the tarball.
 extra_pkgs="baseinit dhcpcd linux wpa_supplicant"
