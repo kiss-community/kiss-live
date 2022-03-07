@@ -1,3 +1,6 @@
+# Directory to work from, /tmp is chosen since it is often a ramfs.
+WORKDIR="/tmp/kiss-live-workdir"
+
 url=https://github.com/kisslinux
 ver=2020.9-2
 tar="kiss-chroot-$ver.tar.xz"
@@ -14,7 +17,10 @@ rootfsdir=${rootfsdir:-$here/rootfs}
 isodir=${isodir:-$here/iso}
 tmpdir=${tmpdir:-$here/tmp}
 
-base_pkgs="baseinit baselayout binutils busybox bzip2 curl dhcpcd flex gcc git gzip kiss libressl linux make musl wpa_supplicant xz zlib"
+# Extra packages to install outside of what already is in the tarball.
+extra_pkgs="baseinit dhcpcd linux wpa_supplicant"
 
 syslinux_files="isohdpfx.bin isolinux.bin ldlinux.c32 libcom32.c32 libutil.c32"
 grub_mod="all_video cat configfile disk echo efi_gop efi_uga fat gzio help iso9660 linux ls multiboot2 normal part_gpt part_msdos search search_label test true"
+
+# vim:filetype=sh
