@@ -5,24 +5,21 @@
 # false positive
 # shellcheck disable=2154
 
-print()
-{
+print() {
     printf "%b \033[1;34m%s\033[m\n" "${2:-"\033[1;33m->\033[m"}" "$1"
 }
 
-panic()
-{
+panic() {
     print "${1:-unexpected error occurred}" \
-        "\033[1;31m!!\033[m" >&2; exit 1
+        "\033[1;31m!!\033[m" >&2
+    exit 1
 }
 
-chroot_exec()
-{
-    echo "$1 3>&-" | "$rootfsdir/usr/bin/kiss-chroot" "${2:-$rootfsdir}" >/dev/null
+chroot_exec() {
+    echo "$1 3>&-" | "$rootfsdir/usr/bin/kiss-chroot" "${2:-$rootfsdir}" > /dev/null
 }
 
-check_depends()
-{
+check_depends() {
     # shellcheck disable=1091
     . /etc/os-release
 
@@ -32,18 +29,17 @@ check_depends()
             [ -d "/var/db/kiss/installed/$_pkg" ] || panic "$_pkg not installed"
         done
     else
-        print "Distro not supported, errors may be expected."; sleep 5;
+        print "Distro not supported, errors may be expected."
+        sleep 5
     fi
 }
 
-cleanup()
-{
+cleanup() {
     [ -n "$pkgdir" ] && umount "$rootfsdir/root/.cache/kiss/sources"
     [ "$debug" = 1 ] || rm -rf "$rootfsdir" "$isodir" "$tmpdir"
 }
 
-usage()
-{
+usage() {
     cat << EOF
 usage: ${0##*/} [options ...]
        -c, --config   <file>           set config file path
@@ -51,10 +47,10 @@ usage: ${0##*/} [options ...]
 
        -s, --sources  <dir>            set sources directory
                                        default is inside chroot
-                                    
+
        -o, --output   <name>           set livecd output path
                                        default is kiss-live-\$ver
-                                    
+
        -p, --package  <pkg1,pkg2,...>  set packages to install
                                        default are <none>
 
@@ -64,32 +60,38 @@ usage: ${0##*/} [options ...]
 EOF
 }
 
-prepare_environment()
-{
+prepare_environment() {
     while [ "$1" ]; do case "$1" in
         -c | --config)
-            buildcfg="${2:?}"; shift 2
-        ;;
+            buildcfg="${2:?}"
+            shift 2
+            ;;
         -s | --sources)
-            pkgdir="${2:?}";   shift 2
-        ;;
+            pkgdir="${2:?}"
+            shift 2
+            ;;
         -o | --output)
-            isolabel="${2:?}"; shift 2
-        ;;
+            isolabel="${2:?}"
+            shift 2
+            ;;
         -p | --package)
-            packages="${2:?}"; shift 2
-        ;;
+            packages="${2:?}"
+            shift 2
+            ;;
         -d | --debug)
-            debug=1; shift 1
-        ;;
+            debug=1
+            shift 1
+            ;;
         -h | --help)
-            usage; exit 0
-        ;;
+            usage
+            exit 0
+            ;;
         *)
             printf "invalid option: %s\n\n" "$1"
-            usage; exit 1
-        ;;
-    esac; done
+            usage
+            exit 1
+            ;;
+    esac  done
 
     print "Preparing enviroment"
 
@@ -112,8 +114,7 @@ prepare_environment()
     [ "$debug" = 1 ] && set -x || :
 }
 
-prepare_rootfs()
-{
+prepare_rootfs() {
     [ ! -f "$tmpdir/$tar" ] && {
         print "Downloading source"
             curl -L "$dl" -o "$tmpdir/$tar" || panic "Failed downloading source"
@@ -142,11 +143,10 @@ prepare_rootfs()
     print "Build base packages"
         for pkg in $base_pkgs tinyramfs; do
             chroot_exec "kiss b $pkg && kiss i $pkg" || panic "Failed to build $pkg"
-        done
+    done
 }
 
-make_iso()
-{
+make_iso() {
     print "Preparing syslinux files"
         install -D "$filesdir/syslinux.cfg" -t "$isodir/boot/syslinux"
         for file in $syslinux_files; do
@@ -159,8 +159,8 @@ make_iso()
             install -D "$rootfsdir/root/.cache/kiss/bin/$pkg@$ver-$rel.tar.xz" -t "$isodir/pkgs"
         done
 
-        install -D "$rootfsdir/boot/vmlinuz" -t "$isodir/boot" \
-            || panic "Failed copying kernel"
+        install -D "$rootfsdir/boot/vmlinuz" -t "$isodir/boot" ||
+               panic "Failed copying kernel"
 
     print "Creating initrd"
         read -r kver _ < "$rootfsdir/var/db/kiss/installed/linux/version"
@@ -169,17 +169,17 @@ make_iso()
         cp -r "$hooksdir/tinyramfs" "$rootfsdir/usr/share/tinyramfs/hooks/diskless"
         install -D "$filesdir/config" -t "$rootfsdir/etc/tinyramfs"
 
-        sed -i "s/@ISOLABEL@/$isolabel/g" "$rootfsdir/etc/tinyramfs/config" \
-            || panic "Failed preparing tinyramfs"
+        sed -i "s/@ISOLABEL@/$isolabel/g" "$rootfsdir/etc/tinyramfs/config" ||
+               panic "Failed preparing tinyramfs"
 
-        chroot_exec "debug=$debug tinyramfs -k $kver -o /boot/initrd" \
-            || panic "Failed create initramfs"
-        
-        install -D "$rootfsdir/boot/initrd" -t "$isodir/boot" \
-            || panic "Failed copying initrd"
-    
+        chroot_exec "debug=$debug tinyramfs -k $kver -o /boot/initrd" ||
+               panic "Failed create initramfs"
+
+        install -D "$rootfsdir/boot/initrd" -t "$isodir/boot" ||
+               panic "Failed copying initrd"
+
     print "Setup grub efi"
-        echo "search --no-floppy --set=root --label $isolabel" >  "$tmpdir/grub-early.cfg"
+        echo "search --no-floppy --set=root --label $isolabel" > "$tmpdir/grub-early.cfg"
         echo "set prefix=(\$root)/boot/grub"                   >> "$tmpdir/grub-early.cfg"
         install -D "$filesdir/grub.cfg" -t "$isodir/boot/grub"
 
@@ -194,12 +194,12 @@ make_iso()
             ${grub_mod}
 
         dd if=/dev/zero of="$isodir/boot/grub/efi.img" count=4096
-        mkdosfs -n KISS-UEFI "$isodir/boot/grub/efi.img" \
-            || panic "Failed create mkdosfs image"
+        mkdosfs -n KISS-UEFI "$isodir/boot/grub/efi.img" ||
+               panic "Failed create mkdosfs image"
 
         mkdir -p "$isodir/boot/grub/efiboot"
-        mount -o loop "$isodir/boot/grub/efi.img" "$isodir/boot/grub/efiboot" \
-            || panic "Failed mount efi.img"
+        mount -o loop "$isodir/boot/grub/efi.img" "$isodir/boot/grub/efiboot" ||
+               panic "Failed mount efi.img"
 
         install -D "$tmpdir/bootx64.efi" -t "$isodir/boot/grub/efiboot/EFI/BOOT"
         umount "$isodir/boot/grub/efiboot"
@@ -221,8 +221,7 @@ make_iso()
             -isohybrid-gpt-basdat \
             -volid "$isolabel" \
             -output "$here/$isolabel.iso" \
-            "$isodir" \
-            || panic "Failed creating iso"
+            "$isodir" || panic "Failed creating iso"
 
     print "Generate checksums"
         md5sum  "$isolabel.iso" > "$here/$isolabel.iso.md5"
