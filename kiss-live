@@ -15,15 +15,32 @@ panic() {
     exit 1
 }
 
+chroot_setup() {
+    cp -f /etc/resolv.conf "$rootfsdir/etc/"
+    mount -t proc none "$rootfsdir/proc/"
+    mount --rbind /dev "$rootfsdir/dev/"
+    mount --rbind /sys "$rootfsdir/sys/"
+}
+
+chroot_umount() {
+    umount -l "$rootfsdir/sys/"
+    umount -l "$rootfsdir/dev/"
+    umount -l "$rootfsdir/proc/"
+}
+
 chroot_exec() {
-    cp /etc/resolv.conf "$rootfsdir/etc/"
+    chroot_setup
     echo "$1" | chroot "$rootfsdir" /usr/bin/env -i \
         HOME=/root \
+        TERM="$TERM" \
         SHELL=/bin/sh \
+        USER=root \
+        LOGNAME=root \
         CFLAGS="${CFLAGS:--march=x86-64 -mtune=generic -pipe -Os}" \
         CXXFLAGS="${CXXFLAGS:--march=x86-64 -mtune=generic -pipe -Os}" \
         MAKEFLAGS="-j$(nproc)" \
         /bin/sh -l
+    chroot_umount
     #echo "$1 3>&-" | "$rootfsdir/usr/bin/kiss-chroot" "${2:-$rootfsdir}" > /dev/null
 }
 
