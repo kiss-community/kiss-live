@@ -94,9 +94,10 @@ read -r kver _ <"$ROOTFS/var/db/kiss/installed/linux/version"
 mkdir -p "$ROOTFS/usr/share/tinyramfs/hooks"
 cp -r "$BASEDIR/hooks/tinyramfs" "$ROOTFS/usr/share/tinyramfs/hooks/diskless"
 
+mkdir -p "$ROOTFS/etc/tinyramfs"
 cp "$BASEDIR/files/config" "$ROOTFS/etc/tinyramfs"
 
-sed -i "s/@ISOLABEL@/$ISOLABEL" "$ROOTFS/etc/tinyramfs/config"
+sed -i "s/@ISOLABEL@/$ISOLABEL/" "$ROOTFS/etc/tinyramfs/config"
 chroot_exec "tinyramfs -k $kver -o /boot/initrd"
 cp "$ROOTFS/boot/initrd" "$ISODIR/boot"
 
@@ -119,7 +120,7 @@ dd if=/dev/zero of="$ISODIR/boot/grub/efi.img" count=4096
 mkdosfs -n KISS-UEFI "$ISODIR/boot/grub/efi.img"
 
 mkdir -p "$ISODIR/boot/grub/efiboot"
-mount -o loop "$ISODIR/boog/grub/efi.img" "$ISODIR/boot/grub/efiboot"
+mount -o loop "$ISODIR/boot/grub/efi.img" "$ISODIR/boot/grub/efiboot"
 mkdir -p "$ISODIR/boot/grub/efiboot/EFI/BOOT/"
 cp "$TMPDIR/bootx64.efi" "$ISODIR/boot/grub/efiboot/EFI/BOOT/"
 umount "$ISODIR/boot/grub/efiboot"
