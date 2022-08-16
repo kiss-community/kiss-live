@@ -56,27 +56,29 @@ cp "$BASEDIR/hooks/kiss/hooks" "$ROOTFS/root/.cache"
 mkdir -p "$ROOTFS/etc/profile.d"
 cp "$BASEDIR/files/kiss-live.sh" "$ROOTFS/etc/profile.d"
 
+[ -e "$TMPDIR/repo" ] && rm -rf "$TMPDIR/repo"
 case $REPO in
 git+*)
     msg "Cloning repository"
-    git clone --depth 1 "${REPO##*+}" /tmp/repo
+    git clone --depth 1 "${REPO##*+}" "$TMPDIR/repo"
     ;;
 local+*)
     msg "Copying repository"
-    cp -r "${REPO##*+}" /tmp/repo
+    cp -r "${REPO##*+}" "$TMPDIR/repo"
     ;;
 esac
 
 mkdir -p "$ROOTFS/var/db/kiss/"
-mv /tmp/repo "$ROOTFS/var/db/kiss/repo"
+[ -e "$ROOTFS/var/db/kiss/repo" ] && rm -rf "$ROOTFS/var/db/kiss/repo"
+mv "$TMPDIR/repo" "$ROOTFS/var/db/kiss/repo"
 
 msg "Adding livecd user"
-chroot_exec "echo 'root:root' | chpasswd"
-chroot_exec "adduser livecd"
-chroot_exec "echo 'livecd:livecd' | chpasswd"
+chroot_exec "echo 'root:root' | chpasswd" || true
+chroot_exec "adduser livecd" || true
+chroot_exec "echo 'livecd:livecd' | chpasswd" || true
 
 for pkg in $EXTRA_PKGS; do
-    chroot_exec "KISS_PROMPT=0 kiss build $pkg && KISS_PROMPT=0 kiss install $pkg"
+    chroot_exec "KISS_PROMPT=0 kiss b $pkg && KISS_PROMPT=0 kiss i $pkg" || true
 done
 
 msg "Preparing syslinux files"
