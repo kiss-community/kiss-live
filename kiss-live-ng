@@ -1,0 +1,149 @@
+#!/bin/sh -e
+
+msg() { printf '\033[1;35m-> \033[m%s\n' "$@"; }
+die() {
+    printf '\033[1;31m!> ERROR: \033[m%s\n' "$@" >&2
+    exit 1
+}
+
+chroot_exec() {
+    echo "$1" | "$ROOTFS/usr/bin/kiss-chroot" "$ROOTFS"
+}
+
+# Configuration variables.
+
+TARBALL="kiss-rootfs-$(date +%Y.%m)-x86_64.tar.xz"
+ISOLABEL="kiss-live-$(date +%Y.%m)-x86-64"
+ISO="$ISOLABEL.iso"
+TMPDIR="/tmp/kiss-live"
+ROOTFS="$TMPDIR/rootfs"
+ISODIR="$TMPDIR/isodir"
+BASEDIR="$PWD"
+REPO="git+https://github.com/kiss-community/repo"
+EXTRA_PKGS="baseinit dhcpcd wpa_supplicant"
+
+syslinux_files="isohdpfx.bin isolinux.bin ldlinux.c32 libcom32.c32 libutil.c32"
+grub_mod="all_video cat configfile disk echo efi_gop efi_uga fat gzio help iso9660 linux ls multiboot2 normal part_gpt part_msdos search search_label test true"
+
+msg "Checking to see if the environment can build the iso successfuly..."
+[ "$(whoami)" = root ] || die "You need to be root"
+[ -e "$TARBALL" ] || die "You need an up to date tarball"
+command -v kiss || die "You need to have access to 'kiss'"
+
+for pkg in grub libisoburn syslinux; do
+    kiss list "$pkg" || die "You need to install $pkg"
+done
+
+mkdir -p "$ROOTFS"
+cd "$ROOTFS"
+msg "Extracting $TARBALL to $ROOTFS"
+tar xf "$BASEDIR/$TARBALL" || die "Failed extracting $TARBALL"
+cd "$OLDPWD"
+
+msg "Installing tinyramfs to $ROOTFS"
+KISS_PATH="$BASEDIR/repo" KISS_PROMPT=0 kiss build tinyramfs
+KISS_PATH="$BASEDIR/repo" KISS_PROMPT=0 KISS_ROOT="$ROOTFS" kiss install tinyramfs
+
+msg "Installing linux to $ROOTFS"
+KISS_PATH="$BASEDIR/repo" KISS_PROMPT=0 kiss build linux
+KISS_PATH="$BASEDIR/repo" KISS_PROMPT=0 KISS_ROOT="$ROOTFS" kiss install linux
+
+msg "Installing extra files to $ROOTFS"
+mkdir -p "$ROOTFS/root/.cache"
+cp "$BASEDIR/files/issue" "$ROOTFS/root/.cache"
+cp "$BASEDIR/hooks/kiss/hooks" "$ROOTFS/root/.cache"
+
+mkdir -p "$ROOTFS/etc/profile.d"
+cp "$BASEDIR/files/kiss-live.sh" "$ROOTFS/etc/profile.d"
+
+case $REPO in
+git+*)
+    msg "Cloning repository"
+    git clone --depth 1 "${REPO##*+}" /tmp/repo
+    ;;
+local+*)
+    msg "Copying repository"
+    cp -r "${REPO##*+}" /tmp/repo
+    ;;
+esac
+
+mkdir -p "$ROOTFS/var/db/kiss/"
+mv /tmp/repo "$ROOTFS/var/db/kiss/repo"
+
+msg "Adding livecd user"
+chroot_exec "echo 'root:root' | chpasswd"
+chroot_exec "adduser livecd"
+chroot_exec "echo 'livecd:livecd' | chpasswd"
+
+for pkg in $EXTRA_PKGS; do
+    chroot_exec "KISS_PROMPT=0 kiss build $pkg && KISS_PROMPT=0 kiss install $pkg"
+done
+
+msg "Preparing syslinux files"
+mkdir -p "$ISODIR/boot/syslinux/"
+cp "$BASEDIR/files/syslinux.cfg" "$ISODIR/boot/syslinux"
+for file in $syslinux_files; do
+    cp "/usr/lib/syslinux/$file" "$ISODIR/boot/syslinux"
+done
+
+msg "Copying Kernel"
+cp "$ROOTFS/boot/vmlinuz" "$ISODIR/boot/"
+
+msg "Creating initrd"
+read -r kver _ <"$ROOTFS/var/db/kiss/installed/linux/version"
+mkdir -p "$ROOTFS/usr/share/tinyramfs/hooks"
+cp -r "$BASEDIR/hooks/tinyramfs" "$ROOTFS/usr/share/tinyramfs/hooks/diskless"
+
+cp "$BASEDIR/files/config" "$ROOTFS/etc/tinyramfs"
+
+sed -i "s/@ISOLABEL@/$ISOLABEL" "$ROOTFS/etc/tinyramfs/config"
+chroot_exec "tinyramfs -k $kver -o /boot/initrd"
+cp "$ROOTFS/boot/initrd" "$ISODIR/boot"
+
+msg "Setting up grub efi"
+echo "search --no-floppy --set=root --label $ISOLABEL" >"$TMPDIR/grub-early.cfg"
+echo "set prefix=(\$root)/boot/grub" >>"$TMPDIR/grub-early.cfg"
+
+mkdir -p "$ISODIR/boot/grub"
+cp "$BASEDIR/files/grub.cfg" "$ISODIR/boot/grub"
+
+grub-mkimage \
+    --config="$TMPDIR/grub-early.cfg" \
+    --prefix="/boot/grub" \
+    --output="$TMPDIR/bootx64.efi" \
+    --format="x86_64-efi" \
+    --compression="xz" \
+    ${grub_mod}
+
+dd if=/dev/zero of="$ISODIR/boot/grub/efi.img" count=4096
+mkdosfs -n KISS-UEFI "$ISODIR/boot/grub/efi.img"
+
+mkdir -p "$ISODIR/boot/grub/efiboot"
+mount -o loop "$ISODIR/boog/grub/efi.img" "$ISODIR/boot/grub/efiboot"
+mkdir -p "$ISODIR/boot/grub/efiboot/EFI/BOOT/"
+cp "$TMPDIR/bootx64.efi" "$ISODIR/boot/grub/efiboot/EFI/BOOT/"
+umount "$ISODIR/boot/grub/efiboot"
+rm -rf "${ISODIR:?}/boot/grub/efiboot" \
+    "${TMPDIR:?}/bootx64.efi" \
+    "${TMPDIR:?}/grub-early.cfg"
+
+msg "Creating iso"
+rm -f "$ISO" "$ISO.sha256"
+xorriso \
+    -as mkisofs \
+    -isohybrid-mbr "$ISODIR/boot/syslinux/isohdpfx.bin" \
+    -eltorito-boot boot/syslinux/isolinux.bin \
+    -eltorito-catalog boot/syslinux/boot.cat \
+    -no-emul-boot \
+    -boot-load-size 4 \
+    -boot-info-table \
+    -eltorito-alt-boot \
+    -e boot/grub/efi.img \
+    -no-emul-boot \
+    -isohybrid-gpt-basdat \
+    -volid "$ISOLABEL" \
+    -output "$BASEDIR/$ISO" \
+    "$ISODIR"
+
+msg "Generating Checksums"
+sha256sum "$ISO" >"$BASEDIR/$ISO.sha256"
