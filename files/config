@@ -1,4 +1,4 @@
-hooks="mdev diskless"
+hooks="mdev,diskless"
 
 compress="xz --check=crc32"
 
