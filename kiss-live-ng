@@ -10,18 +10,19 @@ chroot_exec() {
     echo "$1" | "$ROOTFS/usr/bin/kiss-chroot" "$ROOTFS"
 }
 
-kiss_install(){
-    if ! [ -f "${XDG_CACHE_HOME:-$HOME/.cache}/kiss/bin/$1"* ]; then
-        KISS_PATH="$BASEDIR/repo" KISS_PROMPT=0 kiss build "$1"
-    fi
+kiss_install() {
+    # FIXME: There should be an easier way to do this.
+    for f in "${XDG_CACHE_HOME:-$HOME/.cache}/kiss/bin/$1"*; do
+        if ! [ -e "$f" ]; then
+            KISS_PATH="$BASEDIR/repo" KISS_PROMPT=0 kiss build "$1"
+        fi
+    done
     KISS_PATH="$BASEDIR/repo" KISS_PROMPT=0 KISS_ROOT="$ROOTFS" kiss install "$1"
 }
 # Configuration variables.
 
-#TARBALL="kiss-rootfs-$(date +%Y.%m)-x86_64.tar.xz"
-TARBALL="kiss-rootfs-2022.06-x86_64.tar.xz"
-#ISOLABEL="kiss-live-$(date +%Y.%m)-x86-64"
-ISOLABEL="kiss-live-2022.06-x86-64"
+TARBALL="kiss-rootfs-$(date +%Y.%m)-x86_64.tar.xz"
+ISOLABEL="kiss-live-$(date +%Y.%m)-x86-64"
 ISO="$ISOLABEL.iso"
 TMPDIR="/tmp/kiss-live"
 ROOTFS="$TMPDIR/rootfs"
@@ -42,9 +43,10 @@ for pkg in grub libisoburn syslinux; do
     kiss list "$pkg" || die "You need to install $pkg"
 done
 
+msg "Extracting $TARBALL to $ROOTFS"
+[ -e "$ROOTFS" ] && rm -rf "$ROOTFS"
 mkdir -p "$ROOTFS"
 cd "$ROOTFS"
-msg "Extracting $TARBALL to $ROOTFS"
 tar xf "$BASEDIR/$TARBALL" || die "Failed extracting $TARBALL"
 cd "$OLDPWD"
 
@@ -80,22 +82,23 @@ mkdir -p "$ROOTFS/var/db/kiss/"
 mv "$TMPDIR/repo" "$ROOTFS/var/db/kiss/repo"
 
 msg "Adding livecd user"
+# FIXME: ensure that the script will work without the '|| true'
 chroot_exec "echo 'root:root' | chpasswd" || true
 chroot_exec "adduser livecd" || true
 chroot_exec "echo 'livecd:livecd' | chpasswd" || true
 
 for pkg in $EXTRA_PKGS; do
-    chroot_exec "KISS_PROMPT=0 kiss b $pkg && KISS_PROMPT=0 kiss i $pkg" || true
+    kiss_install "$pkg"
 done
 
-msg "Preparing syslinux files"
+msg "Preparing syslinux files in $ISODIR/boot/syslinux"
 mkdir -p "$ISODIR/boot/syslinux/"
 cp "$BASEDIR/files/syslinux.cfg" "$ISODIR/boot/syslinux"
 for file in $syslinux_files; do
     cp "/usr/lib/syslinux/$file" "$ISODIR/boot/syslinux"
 done
 
-msg "Copying Kernel"
+msg "Copying Kernel image to $ISODIR/boot"
 cp "$ROOTFS/boot/vmlinuz" "$ISODIR/boot/"
 
 msg "Creating initrd"
@@ -118,6 +121,7 @@ echo "set prefix=(\$root)/boot/grub" >>"$TMPDIR/grub-early.cfg"
 mkdir -p "$ISODIR/boot/grub"
 cp "$BASEDIR/files/grub.cfg" "$ISODIR/boot/grub"
 
+msg "Making grub image file"
 grub-mkimage \
     --config="$TMPDIR/grub-early.cfg" \
     --prefix="/boot/grub" \
@@ -125,7 +129,6 @@ grub-mkimage \
     --format="x86_64-efi" \
     --compression="xz" \
     ${grub_mod}
-
 dd if=/dev/zero of="$ISODIR/boot/grub/efi.img" count=4096
 mkdosfs -n KISS-UEFI "$ISODIR/boot/grub/efi.img"
 
