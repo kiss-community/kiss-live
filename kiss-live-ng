@@ -1,4 +1,4 @@
-#!/bin/sh -e
+#!/bin/sh -ex
 
 msg() { printf '\033[1;35m-> \033[m%s\n' "$@"; }
 die() {
