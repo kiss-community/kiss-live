@@ -14,10 +14,10 @@ kiss_install() {
     # FIXME: There should be an easier way to do this.
     for f in "${XDG_CACHE_HOME:-$HOME/.cache}/kiss/bin/$1"*; do
         if ! [ -e "$f" ]; then
-            KISS_PATH="$BASEDIR/repo" KISS_PROMPT=0 kiss build "$1"
+            KISS_PATH="$BASEDIR/repo:$ROOTFS/var/db/kiss/repo/core:$ROOTFS/var/db/kiss/repo/extra" KISS_PROMPT=0 kiss build "$1"
         fi
     done
-    KISS_PATH="$BASEDIR/repo" KISS_PROMPT=0 KISS_ROOT="$ROOTFS" kiss install "$1"
+    KISS_PATH="$BASEDIR/repo:$ROOTFS/var/db/kiss/repo/core:$ROOTFS/var/db/kiss/repo/extra" KISS_PROMPT=0 KISS_ROOT="$ROOTFS" kiss install "$1"
 }
 # Configuration variables.
 
@@ -103,8 +103,8 @@ cp "$ROOTFS/boot/vmlinuz" "$ISODIR/boot/"
 
 msg "Creating initrd"
 read -r kver _ <"$ROOTFS/var/db/kiss/installed/linux/version"
-mkdir -p "$ROOTFS/usr/share/tinyramfs/hook.d/"
-cp -r "$BASEDIR/hooks/tinyramfs" "$ROOTFS/usr/share/tinyramfs/hook.d/diskless"
+mkdir -p "$ROOTFS/usr/lib/tinyramfs/hook.d/diskless"
+cp "$BASEDIR/hooks/tinyramfs/"* "$ROOTFS/usr/lib/tinyramfs/hook.d/diskless"
 
 [ -e "$ROOTFS/etc/tinyramfs" ] && rm -rf "$ROOTFS/etc/tinyramfs"
 mkdir -p "$ROOTFS/etc/tinyramfs"
