@@ -60,7 +60,7 @@ if ! [ -e "$BASEDIR/kiss-live-rootfs.tar.xz" ]; then
     msg "Installing extra files to $ROOTFS"
     mkdir -p "$ROOTFS/root/.cache"
     cp "$BASEDIR/files/issue" "$ROOTFS/etc/issue"
-    cp "$BASEDIR/hooks/kiss/hooks" "$ROOTFS/root/.cache"
+    cp "$BASEDIR/hooks/kiss/hooks" "$ROOTFS/root/hooks"
 
     mkdir -p "$ROOTFS/etc/profile.d"
     cp "$BASEDIR/files/kiss-live.sh" "$ROOTFS/etc/profile.d"
