@@ -29,7 +29,7 @@ ROOTFS="$TMPDIR/rootfs"
 ISODIR="$TMPDIR/isodir"
 BASEDIR="$PWD"
 REPO="git+https://github.com/kiss-community/repo"
-EXTRA_PKGS="baseinit dhcpcd util-linux wpa_supplicant"
+EXTRA_PKGS="baseinit dhcpcd mdevd util-linux wpa_supplicant"
 
 syslinux_files="isohdpfx.bin isolinux.bin ldlinux.c32 libcom32.c32 libutil.c32"
 grub_mod="all_video cat configfile disk echo efi_gop efi_uga fat gzio help iso9660 linux ls multiboot2 normal part_gpt part_msdos search search_label test true"
@@ -100,7 +100,7 @@ if ! [ -e "$BASEDIR/kiss-live-rootfs.tar.xz" ]; then
 
     msg "Enabling servies"
     chroot_exec "mkdir -p /var/service"
-    chroot_exec "ln -s /etc/sv/mdev /var/service/mdev"
+    chroot_exec "ln -s /etc/sv/mdevd /var/service/mdevd"
 
     # Make sure we cleanup all of the downloaded sources.
     chroot_exec "rm -rf /root/.cache"
