@@ -54,12 +54,11 @@ msg "Installing tinyramfs to $ROOTFS"
 kiss_install tinyramfs
 
 msg "Installing linux to $ROOTFS"
-#kiss_install linux
-KISS_PATH="$BASEDIR/repo" KISS_PROMPT=0 KISS_ROOT="$ROOTFS" kiss install "linux"
+kiss_install linux
 
 msg "Installing extra files to $ROOTFS"
 mkdir -p "$ROOTFS/root/.cache"
-cp "$BASEDIR/files/issue" "$ROOTFS/root/.cache"
+cp "$BASEDIR/files/issue" "$ROOTFS/etc/issue"
 cp "$BASEDIR/hooks/kiss/hooks" "$ROOTFS/root/.cache"
 
 mkdir -p "$ROOTFS/etc/profile.d"
