@@ -87,6 +87,17 @@ for pkg in $EXTRA_PKGS; do
     kiss_install "$pkg"
 done
 
+chroot_exec "ln -s /etc/ssl/cert.pem /etc/ssl/certs/ca-certificates.crt"
+
+chroot_exec "KISS_PROMPT=0 kiss b util-linux && KISS_PROMPT=0 kiss i util-linux"
+
+msg "Switching to util-linux's 'mount'"
+chroot_exec "kiss alternatives util-linux /usr/bin/mount"
+
+msg "Enabling servies"
+chroot_exec "mkdir -p /var/service"
+chroot_exec "ln -s /etc/sv/mdev /var/service/mdev"
+
 msg "Preparing syslinux files in $ISODIR/boot/syslinux"
 mkdir -p "$ISODIR/boot/syslinux/"
 cp "$BASEDIR/files/syslinux.cfg" "$ISODIR/boot/syslinux"
