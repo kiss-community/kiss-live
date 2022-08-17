@@ -44,7 +44,7 @@ for pkg in grub libisoburn syslinux; do
 done
 
 msg "Extracting $TARBALL to $ROOTFS"
-[ -e "$ROOTFS" ] && rm -rf "$ROOTFS"
+[ -e "$ROOTFS" ] && rm -rf "${ROOTFS:?}"
 mkdir -p "$ROOTFS"
 cd "$ROOTFS"
 tar xf "$BASEDIR/$TARBALL" || die "Failed extracting $TARBALL"
@@ -65,7 +65,7 @@ cp "$BASEDIR/hooks/kiss/hooks" "$ROOTFS/root/.cache"
 mkdir -p "$ROOTFS/etc/profile.d"
 cp "$BASEDIR/files/kiss-live.sh" "$ROOTFS/etc/profile.d"
 
-[ -e "$TMPDIR/repo" ] && rm -rf "$TMPDIR/repo"
+[ -e "$TMPDIR/repo" ] && rm -rf "${TMPDIR:?}/repo"
 case $REPO in
 git+*)
     msg "Cloning repository"
@@ -78,14 +78,11 @@ local+*)
 esac
 
 mkdir -p "$ROOTFS/var/db/kiss/"
-[ -e "$ROOTFS/var/db/kiss/repo" ] && rm -rf "$ROOTFS/var/db/kiss/repo"
+[ -e "$ROOTFS/var/db/kiss/repo" ] && rm -rf "${ROOTFS:?}/var/db/kiss/repo"
 mv "$TMPDIR/repo" "$ROOTFS/var/db/kiss/repo"
 
-msg "Adding livecd user"
-# FIXME: ensure that the script will work without the '|| true'
-chroot_exec "echo 'root:root' | chpasswd" || true
-chroot_exec "adduser livecd" || true
-chroot_exec "echo 'livecd:livecd' | chpasswd" || true
+msg "Setting root password"
+chroot_exec "echo 'root:root' | chpasswd"
 
 for pkg in $EXTRA_PKGS; do
     kiss_install "$pkg"
@@ -106,7 +103,7 @@ read -r kver _ <"$ROOTFS/var/db/kiss/installed/linux/version"
 mkdir -p "$ROOTFS/usr/lib/tinyramfs/hook.d/diskless"
 cp "$BASEDIR/hooks/tinyramfs/"* "$ROOTFS/usr/lib/tinyramfs/hook.d/diskless"
 
-[ -e "$ROOTFS/etc/tinyramfs" ] && rm -rf "$ROOTFS/etc/tinyramfs"
+[ -e "$ROOTFS/etc/tinyramfs" ] && rm -rf "${ROOTFS:?}/etc/tinyramfs"
 mkdir -p "$ROOTFS/etc/tinyramfs"
 cp "$BASEDIR/files/config" "$ROOTFS/etc/tinyramfs/config"
 
@@ -136,13 +133,14 @@ mkdir -p "$ISODIR/boot/grub/efiboot"
 mount -o loop "$ISODIR/boot/grub/efi.img" "$ISODIR/boot/grub/efiboot"
 mkdir -p "$ISODIR/boot/grub/efiboot/EFI/BOOT/"
 cp "$TMPDIR/bootx64.efi" "$ISODIR/boot/grub/efiboot/EFI/BOOT/"
+
 umount "$ISODIR/boot/grub/efiboot"
 rm -rf "${ISODIR:?}/boot/grub/efiboot" \
     "${TMPDIR:?}/bootx64.efi" \
     "${TMPDIR:?}/grub-early.cfg"
 
 msg "Creating iso"
-rm -f "$ISO" "$ISO.sha256"
+rm -f -- "${ISO:?}" "$ISO.sha256"
 xorriso \
     -as mkisofs \
     -isohybrid-mbr "$ISODIR/boot/syslinux/isohdpfx.bin" \
