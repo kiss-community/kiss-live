@@ -43,60 +43,77 @@ for pkg in grub libisoburn syslinux; do
     kiss list "$pkg" || die "You need to install $pkg"
 done
 
-msg "Extracting $TARBALL to $ROOTFS"
-[ -e "$ROOTFS" ] && rm -rf "${ROOTFS:?}"
-mkdir -p "$ROOTFS"
-cd "$ROOTFS"
-tar xf "$BASEDIR/$TARBALL" || die "Failed extracting $TARBALL"
-cd "$OLDPWD"
+if ! [ -e "$BASEDIR/kiss-live-rootfs.tar.xz" ]; then
+    msg "Extracting $TARBALL to $ROOTFS"
+    [ -e "$ROOTFS" ] && rm -rf "${ROOTFS:?}"
+    mkdir -p "$ROOTFS"
+    cd "$ROOTFS"
+    tar xf "$BASEDIR/$TARBALL" || die "Failed extracting $TARBALL"
+    cd "$OLDPWD"
 
-msg "Installing tinyramfs to $ROOTFS"
-kiss_install tinyramfs
+    msg "Installing tinyramfs to $ROOTFS"
+    kiss_install tinyramfs
 
-msg "Installing linux to $ROOTFS"
-kiss_install linux
+    msg "Installing linux to $ROOTFS"
+    kiss_install linux
 
-msg "Installing extra files to $ROOTFS"
-mkdir -p "$ROOTFS/root/.cache"
-cp "$BASEDIR/files/issue" "$ROOTFS/etc/issue"
-cp "$BASEDIR/hooks/kiss/hooks" "$ROOTFS/root/.cache"
+    msg "Installing extra files to $ROOTFS"
+    mkdir -p "$ROOTFS/root/.cache"
+    cp "$BASEDIR/files/issue" "$ROOTFS/etc/issue"
+    cp "$BASEDIR/hooks/kiss/hooks" "$ROOTFS/root/.cache"
 
-mkdir -p "$ROOTFS/etc/profile.d"
-cp "$BASEDIR/files/kiss-live.sh" "$ROOTFS/etc/profile.d"
+    mkdir -p "$ROOTFS/etc/profile.d"
+    cp "$BASEDIR/files/kiss-live.sh" "$ROOTFS/etc/profile.d"
 
-[ -e "$TMPDIR/repo" ] && rm -rf "${TMPDIR:?}/repo"
-case $REPO in
-git+*)
-    msg "Cloning repository"
-    git clone --depth 1 "${REPO##*+}" "$TMPDIR/repo"
-    ;;
-local+*)
-    msg "Copying repository"
-    cp -r "${REPO##*+}" "$TMPDIR/repo"
-    ;;
-esac
+    [ -e "$TMPDIR/repo" ] && rm -rf "${TMPDIR:?}/repo"
+    case $REPO in
+    git+*)
+        msg "Cloning repository"
+        git clone --depth 1 "${REPO##*+}" "$TMPDIR/repo"
+        ;;
+    local+*)
+        msg "Copying repository"
+        cp -r "${REPO##*+}" "$TMPDIR/repo"
+        ;;
+    esac
 
-mkdir -p "$ROOTFS/var/db/kiss/"
-[ -e "$ROOTFS/var/db/kiss/repo" ] && rm -rf "${ROOTFS:?}/var/db/kiss/repo"
-mv "$TMPDIR/repo" "$ROOTFS/var/db/kiss/repo"
+    mkdir -p "$ROOTFS/var/db/kiss/"
+    [ -e "$ROOTFS/var/db/kiss/repo" ] && rm -rf "${ROOTFS:?}/var/db/kiss/repo"
+    mv "$TMPDIR/repo" "$ROOTFS/var/db/kiss/repo"
 
-msg "Setting root password"
-chroot_exec "echo 'root:root' | chpasswd"
+    msg "Setting root password"
+    chroot_exec "echo 'root:root' | chpasswd"
 
-for pkg in $EXTRA_PKGS; do
-    kiss_install "$pkg"
-done
+    for pkg in $EXTRA_PKGS; do
+        kiss_install "$pkg"
+    done
 
-chroot_exec "ln -s /etc/ssl/cert.pem /etc/ssl/certs/ca-certificates.crt"
+    chroot_exec "ln -s /etc/ssl/cert.pem /etc/ssl/certs/ca-certificates.crt"
 
-chroot_exec "KISS_PROMPT=0 kiss b util-linux && KISS_PROMPT=0 kiss i util-linux"
+    chroot_exec "KISS_PROMPT=0 kiss b util-linux && KISS_PROMPT=0 kiss i util-linux"
 
-msg "Switching to util-linux's 'mount'"
-chroot_exec "kiss alternatives util-linux /usr/bin/mount"
+    msg "Switching to util-linux's 'mount'"
+    chroot_exec "kiss alternatives util-linux /usr/bin/mount"
 
-msg "Enabling servies"
-chroot_exec "mkdir -p /var/service"
-chroot_exec "ln -s /etc/sv/mdev /var/service/mdev"
+    msg "Enabling servies"
+    chroot_exec "mkdir -p /var/service"
+    chroot_exec "ln -s /etc/sv/mdev /var/service/mdev"
+
+    msg "Creating $BASEDIR/kiss-live-rootfs.tar.xz"
+    cd "$ROOTFS"
+    tar -cJf "$BASEDIR/kiss-live-rootfs.tar.xz" .
+    cd "$OLDPWD"
+    mkdir -p "$ISODIR/pkgs"
+    cp "$BASEDIR/kiss-live-rootfs.tar.xz" "$ISODIR/pkgs"
+else
+    # If the rootfs already exists, then we just extract it.
+    msg "Extracting $BASEDIR/kiss-live-rootfs.tar.xz to $ROOTFS"
+    [ -e "$ROOTFS" ] && rm -rf "${ROOTFS:?}"
+    mkdir -p "$ROOTFS"
+    cd "$ROOTFS"
+    tar xf "$BASEDIR/kiss-live-rootfs.tar.xz" || die "Failed extracting $TARBALL"
+    cd "$OLDPWD"
+fi
 
 msg "Preparing syslinux files in $ISODIR/boot/syslinux"
 mkdir -p "$ISODIR/boot/syslinux/"
