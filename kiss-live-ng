@@ -29,7 +29,7 @@ ROOTFS="$TMPDIR/rootfs"
 ISODIR="$TMPDIR/isodir"
 BASEDIR="$PWD"
 REPO="git+https://github.com/kiss-community/repo"
-EXTRA_PKGS="baseinit dhcpcd wpa_supplicant"
+EXTRA_PKGS="baseinit dhcpcd util-linux wpa_supplicant"
 
 syslinux_files="isohdpfx.bin isolinux.bin ldlinux.c32 libcom32.c32 libutil.c32"
 grub_mod="all_video cat configfile disk echo efi_gop efi_uga fat gzio help iso9660 linux ls multiboot2 normal part_gpt part_msdos search search_label test true"
@@ -87,13 +87,13 @@ if ! [ -e "$BASEDIR/kiss-live-rootfs.tar.xz" ]; then
     msg "Setting root password"
     chroot_exec "echo 'root:root' | chpasswd"
 
-    for pkg in $EXTRA_PKGS; do
-        kiss_install "$pkg"
-    done
 
     chroot_exec "ln -s /etc/ssl/cert.pem /etc/ssl/certs/ca-certificates.crt"
 
-    chroot_exec "KISS_PROMPT=0 kiss b util-linux && KISS_PROMPT=0 kiss i util-linux"
+    EXTRA_PKGS="$EXTRA_PKGS kiss"
+    for pkg in $EXTRA_PKGS; do
+        chroot_exec "KISS_PROMPT=0 kiss b $pkg && KISS_PROMPT=0 kiss i $pkg" > /dev/null
+    done
 
     msg "Switching to util-linux's 'mount'"
     chroot_exec "kiss alternatives util-linux /usr/bin/mount"
@@ -101,6 +101,9 @@ if ! [ -e "$BASEDIR/kiss-live-rootfs.tar.xz" ]; then
     msg "Enabling servies"
     chroot_exec "mkdir -p /var/service"
     chroot_exec "ln -s /etc/sv/mdev /var/service/mdev"
+
+    # Make sure we cleanup all of the downloaded sources.
+    chroot_exec "rm -rf /root/.cache"
 
     msg "Creating $BASEDIR/kiss-live-rootfs.tar.xz"
     cd "$ROOTFS"
