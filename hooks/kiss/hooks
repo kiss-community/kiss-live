@@ -2,60 +2,50 @@
 
 cleanup() {
     rm -rf "$3/usr/share/bash-completion" \
-           "$3/usr/share/applications" \
-           "$3/etc/bash_completion.d" \
-           "$3/usr/lib/charset.alias" \
-           "$3/usr/share/polkit-1" \
-           "$3/usr/share/gettext" \
-           "$3/usr/share/gtk-doc" \
-           "$3/usr/share/locale" \
-           "$3/usr/share/sounds" \
-           "$3/usr/share/icons" \
-           "$3/usr/share/info" \
-           "$3/usr/share/doc" \
-           "$3/usr/share/man" \
-           "$3/usr/share/zsh"
+        "$3/usr/share/applications" \
+        "$3/etc/bash_completion.d" \
+        "$3/usr/lib/charset.alias" \
+        "$3/usr/share/polkit-1" \
+        "$3/usr/share/gettext" \
+        "$3/usr/share/gtk-doc" \
+        "$3/usr/share/locale" \
+        "$3/usr/share/sounds" \
+        "$3/usr/share/icons" \
+        "$3/usr/share/info" \
+        "$3/usr/share/doc" \
+        "$3/usr/share/man" \
+        "$3/usr/share/zsh"
 }
 
 case $1 in
-    post-build)
-        case $2 in
-            baselayout) # ensure we keep layout as is
-                echo root:root | chpasswd --root "$3" root
+post-build)
+    case $2 in
+    baselayout) # ensure we keep layout as is
+        echo root:root | chpasswd --root "$3" root
+        ;;
+    busybox)
+        mkdir -p "$3/var/service"
+        ln -sf /etc/sv/mdev "$3/var/service/mdev"
 
-                cp /root/.cache/issue "$3/etc/issue"
-            ;;
-            busybox)
-                mkdir -p "$3/var/service"
-                ln -sf /etc/sv/mdev "$3/var/service/mdev"
+        cleanup
+        ;;
+    kiss) # ensure we keep docs
+        ;;
+    linux) # save around ~5M to iso disk
+        mv "$3/boot/vmlinuz" /boot/vmlinuz
 
-                cleanup
-            ;;
-            dhcpcd)
-                mkdir -p "$3/var/service"
-                ln -sf /usr/share/dhcpcd/hooks/10-wpa_supplicant "$3/usr/lib/dhcpcd/dhcpcd-hooks/10-wpa_supplicant"
-                ln -sf /etc/sv/dhcpcd "$3/var/service/dhcpcd"
-
-                cleanup
-            ;;
-            kiss) # ensure we keep docs
-            ;;
-            linux) # save around ~5M to iso disk
-                mv "$3/boot/vmlinuz" /boot/vmlinuz
-
-                cleanup
-            ;;
-            *)
-                cleanup
-            ;;
-        esac
+        cleanup
+        ;;
+    *)
+        cleanup
+        ;;
+    esac
     ;;
-    post-install)
-        case $PKG in
-            util-linux)
-                kiss a util-linux /usr/bin/mount
-            ;;
-        esac
+post-install)
+    case $PKG in
+    util-linux)
+        kiss a util-linux /usr/bin/mount
+        ;;
+    esac
     ;;
 esac
-
