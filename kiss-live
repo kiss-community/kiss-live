@@ -40,7 +40,7 @@ msg "Checking to see if the environment can build the iso successfuly..."
 command -v kiss || die "You need to have access to 'kiss'"
 
 # Save the time that we started the script.
-awk 'BEGIN { srand(); print srand() }' > "$BASEDIR/starttime"
+awk 'BEGIN { srand(); print srand() }' >"$BASEDIR/starttime"
 
 for pkg in grub libisoburn syslinux; do
     kiss list "$pkg" || die "You need to install $pkg"
@@ -86,13 +86,11 @@ if ! [ -e "$BASEDIR/kiss-live-rootfs.tar.xz" ]; then
 
     msg "Setting root password"
     chroot_exec "echo 'root:root' | chpasswd"
-
-
     chroot_exec "ln -s /etc/ssl/cert.pem /etc/ssl/certs/ca-certificates.crt"
 
     EXTRA_PKGS="$EXTRA_PKGS kiss"
     for pkg in $EXTRA_PKGS; do
-        chroot_exec "KISS_PROMPT=0 kiss b $pkg && KISS_PROMPT=0 kiss i $pkg" > /dev/null
+        chroot_exec "KISS_PROMPT=0 kiss b $pkg && KISS_PROMPT=0 kiss i $pkg" >/dev/null
     done
 
     msg "Switching to util-linux's 'mount'"
@@ -109,8 +107,6 @@ if ! [ -e "$BASEDIR/kiss-live-rootfs.tar.xz" ]; then
     cd "$ROOTFS"
     tar -cJf "$BASEDIR/kiss-live-rootfs.tar.xz" .
     cd "$OLDPWD"
-    mkdir -p "$ISODIR/pkgs"
-    cp "$BASEDIR/kiss-live-rootfs.tar.xz" "$ISODIR/pkgs"
 else
     # If the rootfs already exists, then we just extract it.
     msg "Extracting $BASEDIR/kiss-live-rootfs.tar.xz to $ROOTFS"
@@ -120,6 +116,10 @@ else
     tar xf "$BASEDIR/kiss-live-rootfs.tar.xz" || die "Failed extracting $TARBALL"
     cd "$OLDPWD"
 fi
+
+msg "Copying $BASEDIR/kiss-live-rootfs.tar.xz to $ISODIR/pkgs"
+mkdir -p "$ISODIR/pkgs"
+cp "$BASEDIR/kiss-live-rootfs.tar.xz" "$ISODIR/pkgs"
 
 msg "Preparing syslinux files in $ISODIR/boot/syslinux"
 mkdir -p "$ISODIR/boot/syslinux/"
@@ -152,6 +152,8 @@ mkdir -p "$ISODIR/boot/grub"
 cp "$BASEDIR/files/grub.cfg" "$ISODIR/boot/grub"
 
 msg "Making grub image file"
+# Intended behavior.
+# shellcheck disable=2086
 grub-mkimage \
     --config="$TMPDIR/grub-early.cfg" \
     --prefix="/boot/grub" \
@@ -193,7 +195,7 @@ xorriso \
 msg "Generating Checksums"
 sha256sum "$ISO" >"$BASEDIR/$ISO.sha256"
 
-read -r stime < "$BASEDIR/starttime"
+read -r stime <"$BASEDIR/starttime"
 rm "${BASEDIR:?}/starttime"
 etime=$(awk 'BEGIN { srand(); print srand() }')
 elapsed_sec=$((etime - stime))
