@@ -21,15 +21,13 @@ kiss_install() {
 }
 # Configuration variables.
 
-TARBALL="kiss-rootfs-$(date +%Y.%m)-x86_64.tar.xz"
-ISOLABEL="kiss-live-$(date +%Y.%m)-x86-64"
-ISO="$ISOLABEL.iso"
-TMPDIR="/tmp/kiss-live"
-ROOTFS="$TMPDIR/rootfs"
-ISODIR="$TMPDIR/isodir"
 BASEDIR="$PWD"
-REPO="git+https://github.com/kiss-community/repo"
-EXTRA_PKGS="baseinit dhcpcd mdevd util-linux wpa_supplicant"
+
+# If there is no config file, we copy config.def
+# to config. After we make sure config file is
+# in place, we source the contents
+! [ -e config ] && cp config.def config
+. "${0%/*}/config"
 
 syslinux_files="isohdpfx.bin isolinux.bin ldlinux.c32 libcom32.c32 libutil.c32"
 grub_mod="all_video cat configfile disk echo efi_gop efi_uga fat gzio help iso9660 linux ls multiboot2 normal part_gpt part_msdos search search_label test true"

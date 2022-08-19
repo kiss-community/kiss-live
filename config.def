@@ -1,29 +1,23 @@
-# Directory to work from, /tmp is chosen since it is often a ramfs.
-WORKDIR="/tmp/kiss-live-workdir"
+# Configuration variables.
 
-REPO_URL="git+https://github.com/kiss-community/repo"
+# TARBALL shoud be a tarball that was created with
+# `mkrootfs`.
 TARBALL="kiss-rootfs-$(date +%Y.%m)-x86_64.tar.xz"
+ISOLABEL="kiss-live-$(date +%Y.%m)-x86-64"
+ISO="$ISOLABEL.iso"
 
-url=https://github.com/kisslinux
-ver=2020.9-2
-tar="kiss-chroot-$ver.tar.xz"
-dl="$url/repo/releases/download/$ver/$tar"
+TMPDIR="/tmp/kiss-live"
+ROOTFS="$TMPDIR/rootfs"
+ISODIR="$TMPDIR/isodir"
 
-isolabel="kiss-live-$(date +%Y.%m)"
+# Repo that the script will use to download the extra packages.
+# NOTE: the script does expect for this repo to contain both
+# a 'core' repo and an 'extra' repo.
+REPO="git+https://github.com/kiss-community/repo"
 
-here="$(pwd)"
-repodir=${repodir:-$here/repo}
-filesdir=${filesdir:-$here/files}
-hooksdir=${hooksdir:-$here/hooks}
-
-rootfsdir=${rootfsdir:-$WORKDIR/rootfs}
-isodir=${isodir:-$WORKDIR/iso}
-tmpdir=${tmpdir:-$WORKDIR/tmp}
-
-# Extra packages to install outside of what already is in the tarball.
-extra_pkgs="baseinit dhcpcd linux wpa_supplicant"
-
-syslinux_files="isohdpfx.bin isolinux.bin ldlinux.c32 libcom32.c32 libutil.c32"
-grub_mod="all_video cat configfile disk echo efi_gop efi_uga fat gzio help iso9660 linux ls multiboot2 normal part_gpt part_msdos search search_label test true"
+# Extra packages that you want to have available in the live ISO.
+# baseinit, mdevd, & util-linux are *required*, with all others
+# being optional.
+EXTRA_PKGS="baseinit dhcpcd mdevd util-linux wpa_supplicant"
 
 # vim:filetype=sh
