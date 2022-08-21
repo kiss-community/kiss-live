@@ -1,6 +1,6 @@
 # kiss-live
 
-Allows you to generate unoffical iso images of Kiss Linux and it's derivatives.
+Allows you to generate unoffical iso images of Kiss Linux and its derivatives.
 
 ## Usage
 
