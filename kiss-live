@@ -111,7 +111,6 @@ if ! [ -e "$BASEDIR/kiss-live-rootfs.tar.xz" ]; then
 
     msg "Setting root password"
     chroot_exec "echo 'root:root' | chpasswd"
-    chroot_exec "ln -s /etc/ssl/cert.pem /etc/ssl/certs/ca-certificates.crt"
 
     EXTRA_PKGS="$EXTRA_PKGS kiss"
     for pkg in $EXTRA_PKGS; do
