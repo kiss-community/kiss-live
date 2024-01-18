@@ -112,7 +112,7 @@ if ! [ -e "$BASEDIR/kiss-live-rootfs.tar.xz" ]; then
     msg "Setting root password"
     chroot_exec "echo 'root:root' | chpasswd"
 
-    EXTRA_PKGS="$EXTRA_PKGS kiss"
+    EXTRA_PKGS="$EXTRA_PKGS"
     for pkg in $EXTRA_PKGS; do
         chroot_exec "KISS_PROMPT=0 kiss b $pkg && KISS_PROMPT=0 kiss i $pkg" >/dev/null
     done
