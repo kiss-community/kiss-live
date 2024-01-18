@@ -18,6 +18,6 @@ REPO="git+https://github.com/kiss-community/repo"
 # Extra packages that you want to have available in the live ISO.
 # baseinit, mdevd, & util-linux are *required*, with all others
 # being optional.
-EXTRA_PKGS="baseinit dhcpcd mdevd util-linux wpa_supplicant"
+EXTRA_PKGS="baseinit dhcpcd mdevd util-linux wpa_supplicant openssh"
 
 # vim:filetype=sh
